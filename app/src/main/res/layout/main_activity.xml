@@ -42,53 +42,92 @@
             app:layout_constraintTop_toTopOf="parent"
             android:layout_margin="16dp"/>
 
-        <Button
-            android:id="@+id/btn_up"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:text="@string/Up"
-            android:alpha="0.7"
-            app:layout_constraintBottom_toTopOf="@+id/btn_down"
-            app:layout_constraintStart_toStartOf="@+id/btn_down"
-            android:layout_marginBottom="4dp"/>
-
-        <Button
-            android:id="@+id/btn_down"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:text="@string/Down"
-            android:alpha="0.7"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/dpad_container"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:layout_marginBottom="-16dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            android:layout_marginStart="60dp"
-            android:layout_marginBottom="40dp"/>
+            app:layout_constraintStart_toStartOf="parent">
 
-        <Button
-            android:id="@+id/btn_left"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:text="@string/Left"
-            android:alpha="0.7"
-            app:layout_constraintEnd_toStartOf="@+id/btn_down"
-            app:layout_constraintTop_toTopOf="@+id/btn_down"
-            android:layout_marginEnd="4dp"/>
+            <Space
+                android:id="@+id/dpad_center"
+                android:layout_width="1px"
+                android:layout_height="1px"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-        <Button
-            android:id="@+id/btn_right"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:text="@string/Right"
-            android:alpha="0.7"
-            app:layout_constraintStart_toEndOf="@+id/btn_down"
-            app:layout_constraintTop_toTopOf="@+id/btn_down"
-            android:layout_marginStart="4dp"/>
+            <ImageButton
+                android:id="@+id/btn_up"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginBottom="-5dp"
+                android:alpha="0.7"
+                android:background="@null"
+                android:clickable="false"
+                android:focusable="false"
+                android:scaleType="fitCenter"
+                android:src="@drawable/arrow_up"
+                app:layout_constraintBottom_toTopOf="@+id/dpad_center"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <ImageButton
+                android:id="@+id/btn_down"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginTop="-5dp"
+                android:alpha="0.7"
+                android:background="@null"
+                android:clickable="false"
+                android:focusable="false"
+                android:scaleType="fitCenter"
+                android:src="@drawable/arrow_down"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/dpad_center" />
+
+            <ImageButton
+                android:id="@+id/btn_left"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginEnd="-5dp"
+                android:alpha="0.7"
+                android:background="@null"
+                android:clickable="false"
+                android:focusable="false"
+                android:scaleType="fitCenter"
+                android:src="@drawable/arrow_left"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/dpad_center"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageButton
+                android:id="@+id/btn_right"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginStart="-5dp"
+                android:alpha="0.7"
+                android:background="@null"
+                android:clickable="false"
+                android:focusable="false"
+                android:scaleType="fitCenter"
+                android:src="@drawable/arrow_right"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/dpad_center"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <Button
             android:id="@+id/btn_a"
             android:layout_width="70dp"
             android:layout_height="70dp"
             android:text="@string/a"
-            android:alpha="0.7"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/round_button_bg"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             android:layout_marginEnd="20dp"
@@ -99,7 +138,8 @@
             android:layout_width="70dp"
             android:layout_height="70dp"
             android:text="@string/b"
-            android:alpha="0.7"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/round_button_bg"
             app:layout_constraintEnd_toStartOf="@+id/btn_a"
             app:layout_constraintTop_toBottomOf="@+id/btn_a"
             android:layout_marginEnd="8dp"

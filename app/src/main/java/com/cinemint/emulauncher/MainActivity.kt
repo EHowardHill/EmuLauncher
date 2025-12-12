@@ -1,13 +1,11 @@
 package com.cinemint.emulauncher
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
 import android.os.Bundle
-import android.os.Environment
 import android.view.KeyEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -18,15 +16,11 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 import androidx.annotation.RequiresApi
-import androidx.core.net.toUri
 
 class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
@@ -38,7 +32,6 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private var audioTrack: AudioTrack? = null
     private val sampleRate = 66117
-    private var nativeSampleRate = 66117
 
     companion object {
         init { System.loadLibrary("native-lib") }
@@ -79,14 +72,6 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
             findViewById<View>(R.id.touch_overlay).visibility = View.GONE
         }
 
-        // AUTO-DETECT NATIVE SAMPLE RATE
-        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        val sampleRateStr = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
-        if (sampleRateStr != null) {
-            nativeSampleRate = sampleRateStr.toInt()
-        }
-        println("Native Sample Rate detected: $nativeSampleRate")
-
         Thread { setupEmulator(internalFile) }.start()
     }
 
@@ -118,12 +103,13 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         val overlay = findViewById<View>(R.id.touch_overlay)
         overlay.visibility = View.VISIBLE
 
-        // Helper to reduce boilerplate
+        // 1. Standard Bind for standalone buttons (A, B, Start, Select, L, R)
+        // These don't need sliding logic usually, so we keep them simple.
         fun bind(viewId: Int, emuBtn: Int) {
             findViewById<View>(viewId).setOnTouchListener { v, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        v.isPressed = true // Visual feedback
+                        v.isPressed = true
                         setInputState(emuBtn, true)
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -131,20 +117,87 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
                         setInputState(emuBtn, false)
                     }
                 }
-                true // Consume event
+                true
             }
         }
 
-        bind(R.id.btn_up, BUTTON_UP)
-        bind(R.id.btn_down, BUTTON_DOWN)
-        bind(R.id.btn_left, BUTTON_LEFT)
-        bind(R.id.btn_right, BUTTON_RIGHT)
         bind(R.id.btn_a, BUTTON_A)
         bind(R.id.btn_b, BUTTON_B)
         bind(R.id.btn_start, BUTTON_START)
         bind(R.id.btn_select, BUTTON_SELECT)
         bind(R.id.btn_l, BUTTON_L)
         bind(R.id.btn_r, BUTTON_R)
+
+        // 2. D-Pad Multitouch Logic
+        val dpadContainer = findViewById<View>(R.id.dpad_container)
+        val btnUp = findViewById<View>(R.id.btn_up)
+        val btnDown = findViewById<View>(R.id.btn_down)
+        val btnLeft = findViewById<View>(R.id.btn_left)
+        val btnRight = findViewById<View>(R.id.btn_right)
+
+        // Helper: Checks if a generic (x,y) coordinate is inside a child view
+        fun isTouchInsideView(view: View, x: Float, y: Float): Boolean {
+            val rect = Rect()
+            view.getHitRect(rect) // Gets coordinates relative to the parent (dpadContainer)
+            return rect.contains(x.toInt(), y.toInt())
+        }
+
+        // State tracking to prevent JNI spam
+        var lastUp = false
+        var lastDown = false
+        var lastLeft = false
+        var lastRight = false
+
+        dpadContainer.setOnTouchListener { _, event ->
+            // 1. Reset "Current Frame" inputs
+            var isUp = false
+            var isDown = false
+            var isLeft = false
+            var isRight = false
+
+            // 2. Loop through ALL active fingers (pointers)
+            val action = event.actionMasked
+            if (action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_CANCEL) {
+                for (i in 0 until event.pointerCount) {
+                    // Skip this pointer if it's the one currently being lifted up
+                    if (action == MotionEvent.ACTION_POINTER_UP && i == event.actionIndex) continue
+
+                    // Get coordinates relative to the D-Pad Container
+                    val x = event.getX(i)
+                    val y = event.getY(i)
+
+                    // Check which button this specific finger is touching
+                    if (isTouchInsideView(btnUp, x, y)) isUp = true
+                    if (isTouchInsideView(btnDown, x, y)) isDown = true
+                    if (isTouchInsideView(btnLeft, x, y)) isLeft = true
+                    if (isTouchInsideView(btnRight, x, y)) isRight = true
+                }
+            }
+
+            // 3. Update Visuals & JNI (Only if state changed)
+            if (isUp != lastUp) {
+                btnUp.isPressed = isUp
+                setInputState(BUTTON_UP, isUp)
+                lastUp = isUp
+            }
+            if (isDown != lastDown) {
+                btnDown.isPressed = isDown
+                setInputState(BUTTON_DOWN, isDown)
+                lastDown = isDown
+            }
+            if (isLeft != lastLeft) {
+                btnLeft.isPressed = isLeft
+                setInputState(BUTTON_LEFT, isLeft)
+                lastLeft = isLeft
+            }
+            if (isRight != lastRight) {
+                btnRight.isPressed = isRight
+                setInputState(BUTTON_RIGHT, isRight)
+                lastRight = isRight
+            }
+
+            true // Consume the event
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -229,10 +282,6 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
             // FPS Variables
             var frameCount = 0
             var lastFpsTime = System.currentTimeMillis()
-            val textPaint = android.graphics.Paint().apply {
-                color = Color.YELLOW
-                textSize = 20f // Smaller text since our canvas is low-res now
-            }
 
             while (isRunning) {
                 // 1. Run Core
