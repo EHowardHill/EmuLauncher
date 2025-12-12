@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">EmuLauncher</string>
+    <string name="start">START</string>
+    <string name="select">SELECT</string>
+    <string name="b">B</string>
+    <string name="a">A</string>
+    <string name="Right"><![CDATA[>]]></string>
+    <string name="Left"><![CDATA[<]]></string>
+    <string name="Down">v</string>
+    <string name="Up">^</string>
+    <string name="r">R</string>
+    <string name="l">L</string>
+</resources>
