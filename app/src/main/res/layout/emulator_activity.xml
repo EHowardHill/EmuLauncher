@@ -1,4 +1,3 @@
-emulator_activity.xml:
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -175,55 +174,3 @@ emulator_activity.xml:
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
-item_rom.xml:
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:padding="8dp"
-    android:gravity="center"
-    android:background="?attr/selectableItemBackground">
-
-    <ImageView
-        android:id="@+id/rom_icon"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
-        android:background="#333333"
-        android:layout_marginEnd="16dp"
-        android:contentDescription="ROM Icon" />
-
-    <TextView
-        android:id="@+id/rom_name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#FFFFFF"
-        android:textSize="48sp"
-        android:shadowColor="@color/black"
-        android:shadowRadius="12"
-        android:paddingLeft="12dp"
-        android:paddingRight="12dp"
-        android:fontFamily="@font/bogart_semibold"
-        android:text="Game Name" />
-</LinearLayout>
-
-main_activity.xml:
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/root_layout"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#121212"
-    android:clipChildren="false"> <androidx.recyclerview.widget.RecyclerView
-    android:id="@+id/recycler_view"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:paddingTop="350dp"
-    android:paddingBottom="350dp"
-    android:clipToPadding="false"
-    android:clipChildren="false"
-    android:descendantFocusability="blocksDescendants" />
-
-</LinearLayout>

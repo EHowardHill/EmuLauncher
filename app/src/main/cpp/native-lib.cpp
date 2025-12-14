@@ -4,10 +4,10 @@
 #include <dlfcn.h>
 #include <vector>
 #include <cstring>
-#include <android/bitmap.h> // Required for video handling
+#include <android/bitmap.h>
 #include "libretro.h"
 
-#define TAG "GBAEmulator"
+#define TAG "EmuLauncher"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
 
 #define RETRO_ENVIRONMENT_GET_PIXEL_FORMAT 10
@@ -24,8 +24,7 @@ static unsigned g_video_height = 0;
 // Audio buffer setup
 static std::vector<int16_t> g_audio_buffer;
 
-// --- Function Pointers (Renamed to avoid conflict with libretro.h) ---
-// We added "ptr_" to the start of these names.
+// --- Function Pointers ---
 void (*ptr_retro_init)(void);
 void (*ptr_retro_deinit)(void);
 bool (*ptr_retro_load_game)(struct retro_game_info *info);
@@ -37,26 +36,28 @@ void (*ptr_retro_set_audio_sample)(retro_audio_sample_t);
 void (*ptr_retro_set_audio_sample_batch)(retro_audio_sample_batch_t);
 void (*ptr_retro_set_input_poll)(retro_input_poll_t);
 void (*ptr_retro_set_input_state)(retro_input_state_t);
+// FIXED: Added this missing declaration
+void (*ptr_retro_get_system_av_info)(struct retro_system_av_info *info);
 
-// --- Callbacks (Called by Core) ---
+// --- Callbacks ---
 
 void video_refresh_cb(const void *data, unsigned width, unsigned height, size_t pitch)
 {
-    if (!data)
-        return;
+    if (!data) return;
 
     if (width != g_video_width || height != g_video_height)
     {
         g_video_width = width;
         g_video_height = height;
-        if (g_video_buffer)
-            free(g_video_buffer);
+        if (g_video_buffer) free(g_video_buffer);
+        // RGB565 is 2 bytes per pixel
         g_video_buffer = (uint16_t *)malloc(height * width * sizeof(uint16_t));
     }
 
     const uint8_t *src = (const uint8_t *)data;
     uint16_t *dst = g_video_buffer;
 
+    // Pitch is in bytes, width is in pixels
     for (unsigned y = 0; y < height; y++)
     {
         memcpy(dst, src, width * sizeof(uint16_t));
@@ -77,17 +78,13 @@ size_t audio_sample_batch_cb(const int16_t *data, size_t frames)
     return frames;
 }
 
-void input_poll_cb()
-{
-    // No-op
-}
+void input_poll_cb() { /* No-op */ }
 
 int16_t input_state_cb(unsigned port, unsigned device, unsigned index, unsigned id)
 {
     if (port == 0 && device == RETRO_DEVICE_JOYPAD)
     {
-        if (g_joypad_mask & (1 << id))
-            return 1;
+        if (g_joypad_mask & (1 << id)) return 1;
     }
     return 0;
 }
@@ -103,21 +100,24 @@ bool environment_cb(unsigned cmd, void *data)
     return false;
 }
 
-// --- JNI Implementation ---
+// --- JNI Implementation (Updated to EmulatorActivity) ---
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_cinemint_emulauncher_MainActivity_loadCore(JNIEnv *env, jobject /* this */, jstring corePath)
+Java_com_cinemint_emulauncher_EmulatorActivity_loadCore(JNIEnv *env, jobject /* this */, jstring corePath)
 {
     const char *path = env->GetStringUTFChars(corePath, 0);
 
+    LOGD("Loading Core: %s", path);
     coreHandle = dlopen(path, RTLD_LAZY);
+
     if (!coreHandle)
     {
         LOGD("Failed to load core: %s", dlerror());
+        env->ReleaseStringUTFChars(corePath, path);
         return false;
     }
 
-    // Bind ALL pointers (Notice we assign to ptr_retro_...)
+    // FIXED: dlsym ONLY after dlopen
     ptr_retro_init = (void (*)(void))dlsym(coreHandle, "retro_init");
     ptr_retro_deinit = (void (*)(void))dlsym(coreHandle, "retro_deinit");
     ptr_retro_load_game = (bool (*)(struct retro_game_info *))dlsym(coreHandle, "retro_load_game");
@@ -129,23 +129,17 @@ Java_com_cinemint_emulauncher_MainActivity_loadCore(JNIEnv *env, jobject /* this
     ptr_retro_set_audio_sample_batch = (void (*)(retro_audio_sample_batch_t))dlsym(coreHandle, "retro_set_audio_sample_batch");
     ptr_retro_set_input_poll = (void (*)(retro_input_poll_t))dlsym(coreHandle, "retro_set_input_poll");
     ptr_retro_set_input_state = (void (*)(retro_input_state_t))dlsym(coreHandle, "retro_set_input_state");
+    ptr_retro_get_system_av_info = (void (*)(struct retro_system_av_info *))dlsym(coreHandle, "retro_get_system_av_info");
 
     // Setup Callbacks
-    if (ptr_retro_set_environment)
-        ptr_retro_set_environment(environment_cb);
-    if (ptr_retro_set_video_refresh)
-        ptr_retro_set_video_refresh(video_refresh_cb);
-    if (ptr_retro_set_audio_sample)
-        ptr_retro_set_audio_sample(audio_sample_cb);
-    if (ptr_retro_set_audio_sample_batch)
-        ptr_retro_set_audio_sample_batch(audio_sample_batch_cb);
-    if (ptr_retro_set_input_poll)
-        ptr_retro_set_input_poll(input_poll_cb);
-    if (ptr_retro_set_input_state)
-        ptr_retro_set_input_state(input_state_cb);
+    if (ptr_retro_set_environment) ptr_retro_set_environment(environment_cb);
+    if (ptr_retro_set_video_refresh) ptr_retro_set_video_refresh(video_refresh_cb);
+    if (ptr_retro_set_audio_sample) ptr_retro_set_audio_sample(audio_sample_cb);
+    if (ptr_retro_set_audio_sample_batch) ptr_retro_set_audio_sample_batch(audio_sample_batch_cb);
+    if (ptr_retro_set_input_poll) ptr_retro_set_input_poll(input_poll_cb);
+    if (ptr_retro_set_input_state) ptr_retro_set_input_state(input_state_cb);
 
-    if (ptr_retro_init)
-        ptr_retro_init();
+    if (ptr_retro_init) ptr_retro_init();
 
     g_audio_buffer.reserve(4096);
 
@@ -154,7 +148,7 @@ Java_com_cinemint_emulauncher_MainActivity_loadCore(JNIEnv *env, jobject /* this
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_cinemint_emulauncher_MainActivity_loadGame(JNIEnv *env, jobject /* this */, jstring gamePath)
+Java_com_cinemint_emulauncher_EmulatorActivity_loadGame(JNIEnv *env, jobject /* this */, jstring gamePath)
 {
     const char *path = env->GetStringUTFChars(gamePath, 0);
     struct retro_game_info game = {0};
@@ -171,7 +165,7 @@ Java_com_cinemint_emulauncher_MainActivity_loadGame(JNIEnv *env, jobject /* this
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_cinemint_emulauncher_MainActivity_setInputState(JNIEnv *env, jobject /* this */, jint buttonId, jboolean pressed)
+Java_com_cinemint_emulauncher_EmulatorActivity_setInputState(JNIEnv *env, jobject /* this */, jint buttonId, jboolean pressed)
 {
     if (pressed)
         g_joypad_mask |= (1 << buttonId);
@@ -180,10 +174,9 @@ Java_com_cinemint_emulauncher_MainActivity_setInputState(JNIEnv *env, jobject /*
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_cinemint_emulauncher_MainActivity_runFrame(JNIEnv *env, jobject /* this */, jobject bitmap, jshortArray audioArray)
+Java_com_cinemint_emulauncher_EmulatorActivity_runFrame(JNIEnv *env, jobject /* this */, jobject bitmap, jshortArray audioArray)
 {
-    if (!ptr_retro_run)
-        return 0;
+    if (!ptr_retro_run) return 0;
 
     // 1. Run Emulation
     ptr_retro_run();
@@ -192,6 +185,7 @@ Java_com_cinemint_emulauncher_MainActivity_runFrame(JNIEnv *env, jobject /* this
     if (g_video_buffer)
     {
         void *bitmapPixels;
+        // Lock the Android Bitmap to write C++ pixels to it
         if (AndroidBitmap_lockPixels(env, bitmap, &bitmapPixels) >= 0)
         {
             memcpy(bitmapPixels, g_video_buffer, g_video_width * g_video_height * 2);
@@ -204,8 +198,7 @@ Java_com_cinemint_emulauncher_MainActivity_runFrame(JNIEnv *env, jobject /* this
     if (samples > 0)
     {
         jsize arrayLen = env->GetArrayLength(audioArray);
-        if (samples > arrayLen)
-            samples = arrayLen;
+        if (samples > arrayLen) samples = arrayLen;
 
         env->SetShortArrayRegion(audioArray, 0, samples, g_audio_buffer.data());
         g_audio_buffer.clear();
@@ -213,4 +206,16 @@ Java_com_cinemint_emulauncher_MainActivity_runFrame(JNIEnv *env, jobject /* this
     }
 
     return 0;
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_com_cinemint_emulauncher_EmulatorActivity_getCoreSampleRate(JNIEnv *env, jobject /* this */)
+{
+    if (ptr_retro_get_system_av_info)
+    {
+        struct retro_system_av_info av_info = {0};
+        ptr_retro_get_system_av_info(&av_info);
+        return av_info.timing.sample_rate;
+    }
+    return 44100.0;
 }

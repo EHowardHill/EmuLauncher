@@ -30,5 +30,5 @@ def process(path, name):
     with open("source-" + name + ".txt", "w", encoding="utf-8") as f:
         f.write(final.strip())
 
-process(r"C:\Users\ethan\OneDrive\Documents\GitHub\EmuLauncher\app\src\main\java\com\cinemint\emulauncher", "emulauncher")
-process(r"C:\Users\ethan\OneDrive\Documents\GitHub\EmuLauncher\app\src\main\res\layout", "res")
+process(r"C:\Users\ethan\Documents\GitHub\EmuLauncher\app\src\main\java\com\cinemint\emulauncher", "emulauncher")
+process(r"C:\Users\ethan\Documents\GitHub\EmuLauncher\app\src\main\res\layout", "res")
